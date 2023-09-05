@@ -1,3 +1,4 @@
+https://github.com/AhmadRafiee/DevOps_Certification/blob/main/ansible/AWX-installation-configuration.md
 vim installer/inventory
 edit the file as the picture
 then run the ansible again
