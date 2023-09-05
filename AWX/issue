@@ -1,2 +1,3 @@
 vim installer/inventory
 edit the file as the picture
+then run the ansible again
