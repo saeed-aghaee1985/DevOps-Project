@@ -1,1 +1,68 @@
+#URL
+https://wp.bitsbytes.ir/ #without Docker
+https://wpdocker.bitsbytes.ir/wp-admin/install.php #with Docker
+
+Docker Soulotion:
+#start mysql
+docker run -d --name mysql --hostname mysql \
+--network=wp-net --restart=always \
+-v db-data:/var/lib/mysql \
+-e MYSQL_ROOT_PASSWORD=sdvfsacsiojoijsaefawefmwervs \
+-e MYSQL_DATABASE=bitsbytes \
+-e MYSQL_USER=bitsbytes \
+-e MYSQL_PASSWORD=sdvfsacsiojoijsaefawefmwervs \
+mysql:5.7
+
+#start wordpress
+docker run -d --name wordpress --hostname wordpress \
+--network=wp-net --restart=always \
+--mount=source=wp-data,target=/var/www/html/ \
+-e WORDPRESS_DB_PASSWORD=sdvfsacsiojoijsaefawefmwervs \
+-e WORDPRESS_DB_HOST=mysql:3306 \
+-e WORDPRESS_DB_USER=bitsbytes \
+-e WORDPRESS_DB_NAME=bitsbytes \
+wordpress:latest
+
+#Take certificate
+https://certbot.eff.org/instructions?ws=other&os=ubuntufocal 
+
+mkdir ${PWD}/nginx/conf.d
+vim ${PWD}/nginx/conf.d/wordpress.conf
+
+#nginx config:
+server {
+  listen 443 ssl;
+  server_name wpdocker.bitsbytes.ir;
+  ssl_certificate /etc/nginx/certs/live/wpdocker.bitsbytes.ir/fullchain.pem;
+  ssl_certificate_key /etc/nginx/certs/live/wpdocker.bitsbytes.ir/privkey.pem;
+
+  location / {
+    proxy_pass            http://wordpress:80;
+    proxy_set_header  Host              $http_host;   # required for docker client's sake
+    proxy_set_header  X-Real-IP         $remote_addr; # pass on real client's IP
+    proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header  X-Forwarded-Proto $scheme;
+    add_header X-Powered-By "Saeed Aghaee | bitsbytes.ir";
+    }
+ }
+
+ server {
+    listen 80;
+    server_name wpdocker.bitsbytes.ir;
+    return 301 https://$host$request_uri;
+    
+#run nginx
+docker run -d --name nginx --hostname nginx \
+--network=wp-net --restart=always \
+-v ${PWD}/nginx/conf.d:/etc/nginx/conf.d \
+-v /etc/letsencrypt:/etc/nginx/certs \
+-p 80:80 -p 443:443 \
+nginx:latest
+
+Useful commands:
+docker rm -f $(docker ps -a -q)
+docker system prune --volumes
+docker volume rm wp-data
+docker exec -it nginx bash #bash in container
+
 
