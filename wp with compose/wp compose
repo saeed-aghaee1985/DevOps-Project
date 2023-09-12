@@ -1,0 +1,117 @@
+#The name of compose file:
+compose.yml 
+-----------------------------------------------------------------------------------------------------------
+#compose file:
+
+version: '4.8'
+
+networks:
+  wp-net:
+    name: wp-net
+    driver: bridge
+    external: false
+
+volumes:
+  wp-data:
+    name: wp-data
+    driver: local
+    external: false
+  db-data:
+    name: db-data
+    driver: local
+    external: false
+
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: mysql
+    hostname: mysql
+    restart: always
+    networks:
+      - wp-net
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    environment:
+      - MYSQL_ROOT_PASSWORD=sdvfsacsiojoijsaefawefmwervs
+      - MYSQL_DATABASE=bitsbytes
+      - MYSQL_USER=bitsbytes
+      - MYSQL_PASSWORD=sdvfsacsiojoijsaefawefmwervs
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress
+    hostname: wordpress
+    restart: always
+    networks:
+      - wp-net
+    volumes:
+      - wp-data:/var/lib/wordpress
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - WORDPRESS_DB_PASSWORD=sdvfsacsiojoijsaefawefmwervs
+      - WORDPRESS_DB_HOST=mysql:3306
+      - WORDPRESS_DB_USER=bitsbytes
+      - WORDPRESS_DB_NAME=bitsbytes
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    hostname: nginx
+    restart: always
+    networks:
+      - wp-net
+    depends_on:
+      wordpress:
+        condition: service_started
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - /etc/letsencrypt:/etc/nginx/certs
+    ports:
+      - 80:80
+      - 443:443
+-------------------------------------------------------------------------------------------------------------
+#chek your compose file:
+docker compose config
+
+#Get certificate with certbot
+
+# Crete nginx dir and cfg
+mkdir nginx
+cd nginx
+mkdir conf.d
+cd conf.d
+vim wordpress.conf
+-------------------------------------------------------------------------------------------------------------
+#nginx config file
+server {
+  listen 443 ssl;
+  server_name wpcompose.bitsbytes.ir;
+  ssl_certificate /etc/nginx/certs/live/wpcompose.bitsbytes.ir/fullchain.pem;
+  ssl_certificate_key /etc/nginx/certs/live/wpcompose.bitsbytes.ir/privkey.pem;
+
+  location / {
+    proxy_pass            http://wordpress:80;
+    proxy_set_header  Host              $http_host;   # required for docker client's sake
+    proxy_set_header  X-Real-IP         $remote_addr; # pass on real client's IP
+    proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header  X-Forwarded-Proto $scheme;
+    add_header X-Powered-By "Saeed Aghaee | bitsbytes.ir";
+    }
+ }
+
+ server {
+    listen 80;
+    server_name wpcompose.bitsbytes.ir;
+    return 301 https://$host$request_uri;
+ }
+-------------------------------------------------------------------------------------------
+# usefull commands      
+docker compose up -d
+docker compose down -v
+
